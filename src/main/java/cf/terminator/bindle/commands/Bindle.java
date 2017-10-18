@@ -12,6 +12,8 @@ import org.spongepowered.api.text.Text;
 import java.util.UUID;
 
 public class Bindle implements CommandExecutor{
+    public static final int PLAYER_NBT_DATA = -128;
+    
     @Override
     public CommandResult execute(CommandSource src, CommandContext args) throws CommandException {
         UUID uuid;

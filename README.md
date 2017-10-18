@@ -11,5 +11,15 @@ A [Sponge](https://www.spongepowered.org/)  plugin capable of transferring items
 `/bindle` (`bindle.user.use`)<br>
 Opens your Bindle
 
+
+`/bindle 4` (`bindle.user.use`)<br>
+Opens your Bindle on page 4
+
+`/bindle put-self` (`bindle.user.putself`)<br>
+Uploads your player.dat to the SQL server
+
+`/bindle get-self` (`bindle.user.getself`)<br>
+Retrieves your player.dat to the SQL server
+
 `/bindleReload` (`bindle.admin.reload`)<br>
 Reloads the Bindle config, useful for setting up SQL.
