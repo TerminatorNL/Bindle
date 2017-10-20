@@ -2,31 +2,84 @@ package cf.terminator.bindle.commands;
 
 import cf.terminator.bindle.Main;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.block.BlockTypes;
 import org.spongepowered.api.command.CommandException;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.command.args.CommandContext;
 import org.spongepowered.api.command.spec.CommandExecutor;
+import org.spongepowered.api.data.key.Keys;
+import org.spongepowered.api.entity.EntityTypes;
+import org.spongepowered.api.entity.Item;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.EventListener;
+import org.spongepowered.api.event.cause.Cause;
+import org.spongepowered.api.event.cause.NamedCause;
 import org.spongepowered.api.event.network.ClientConnectionEvent;
+import org.spongepowered.api.item.inventory.Inventory;
+import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.format.TextColors;
 import org.spongepowered.api.world.Location;
 import org.spongepowered.api.world.World;
-import org.spongepowered.api.world.storage.WorldProperties;
+import org.spongepowered.common.item.inventory.adapter.impl.slots.SlotAdapter;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.nio.file.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.Optional;
 import java.util.UUID;
 
 public class GetSelf implements CommandExecutor{
+    private static void attemptDrop(Player player, Inventory i, Location<World> OLD_PLAYER_LOCATION) {
+        if (i instanceof SlotAdapter) {
+            Optional<ItemStack> stack = i.peek();
+            if (stack.isPresent()) {
+                i.clear();
+                Item item = (Item) player.getWorld().createEntity(EntityTypes.ITEM, OLD_PLAYER_LOCATION.getPosition());
+                item.offer(Keys.REPRESENTED_ITEM, stack.get().createSnapshot());
+                Sponge.getScheduler().createTaskBuilder().execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        player.getWorld().spawnEntity(item, Cause.of(NamedCause.owner(Main.PLUGIN)));
+                    }
+                }).submit(Main.PLUGIN);
+            }
+        } else {
+            for (Inventory sub : i) {
+                attemptDrop(player, sub, OLD_PLAYER_LOCATION);
+            }
+        }
+    }
+
+    private static int waitForUnlock(File file) {
+        int count = 0;
+        while (true) {
+            try {
+                FileInputStream i = new FileInputStream(file);
+                i.close();
+                break;
+            } catch (FileNotFoundException ignored) {
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            try {
+                if (count > 20000) {
+                    throw new RuntimeException("Minecraft has been writing to the playerfile " + file + " for 20 seconds now... I am going on a limb here, and assume that the server is broken by now.");
+                }
+                Thread.sleep(10);
+                count = count + 10;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        return count;
+    }
+
     @Override
     public CommandResult execute(CommandSource src, CommandContext commandContext) throws CommandException {
         UUID uuid;
@@ -63,28 +116,21 @@ public class GetSelf implements CommandExecutor{
                         player.sendMessage(Text.of("You have to use /bindle put-self first!"));
                         return;
                     }
-
                     final byte[] data = dataTMP;
+                    /* Everything works! Preparing the player.... */
+
+                    Inventory playerInventory = player.getInventory();
+                    final Location<World> OLD_PLAYER_LOCATION = player.getLocation();
+
+                    attemptDrop(player, playerInventory, OLD_PLAYER_LOCATION);
 
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
                             try {
-                                boolean isDone = false;
-                                while (isDone == false) {
-                                    WatchService service = FileSystems.getDefault().newWatchService();
-                                    playerFile.getParentFile().toPath().register(service, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.OVERFLOW);
-                                    for (WatchEvent<?> l : service.take().pollEvents()) {
-                                        final Path changed = (Path) l.context();
-                                        if (changed.endsWith(playerFile.getName() + ".tmp")) {
-                                            Main.LOGGER.info(player.getName() + "\'s files are updated. Starting file replacement!");
-                                            isDone = true;
-                                            break;
-                                        }
-                                    }
-                                    service.close();
-                                }
-                                Thread.sleep(200); //Wait for minecraft to finish updating the NBT data
+                                // Wait for minecraft to finish writing to the NBT file.
+                                Main.LOGGER.info(player.getName() + "\'s files are updated. Starting file replacement! Update time: " + waitForUnlock(playerFile) + " ms.");
+
                                 if (playerFile.delete() == false) {
                                     throw new RuntimeException("Failed to delete data for: " + player.getName());
                                 }
@@ -107,24 +153,8 @@ public class GetSelf implements CommandExecutor{
                     Sponge.getEventManager().registerListener(Main.PLUGIN, ClientConnectionEvent.Join.class, new EventListener<ClientConnectionEvent.Join>() {
                         @Override
                         public void handle(ClientConnectionEvent.Join join) throws Exception {
-                            Main.LOGGER.info("ERMERGERD: " + join.getTargetEntity().getUniqueId());
                             if(join.getTargetEntity().getUniqueId().equals(uuid)) {
-                                WorldProperties world = Sponge.getServer().getDefaultWorld().get();
-                                World worldObj = Sponge.getServer().getWorld(world.getUniqueId()).get();
-                                Location<World> location = worldObj.getSpawnLocation();
-                                int count = 0;
-                                while (true){
-                                    if(location.getBlock().getType().equals(BlockTypes.AIR)){
-                                        count++;
-                                    }else{
-                                        count = 0;
-                                    }
-                                    if(count == 2){
-                                        break;
-                                    }
-                                    location = location.add(0,1,0);
-                                }
-                                join.getTargetEntity().setLocation(location);
+                                join.getTargetEntity().setLocation(OLD_PLAYER_LOCATION);
                                 Sponge.getEventManager().unregisterListeners(this);
                             }
                         }

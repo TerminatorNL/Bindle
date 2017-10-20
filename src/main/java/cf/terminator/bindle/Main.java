@@ -26,20 +26,21 @@ public class Main {
     static final String VERSION = "1.0";
 
     public static Main PLUGIN;
-
+    public static Logger LOGGER;
+    public static Path DEFAULT_CONFIG;
+    public static Manager CONFIG_MANAGER;
+    private final Object key = new Object();
+    public Manager.Credentials Credentials;
+    public SQLManager SQLManager;
     @Inject
     private Logger LOGGER_;
-    public static Logger LOGGER;
-
     @Inject
     @DefaultConfig(sharedRoot = true)
     private Path DEFAULT_CONFIG_;
-    public static Path DEFAULT_CONFIG;
 
-    public static Manager CONFIG_MANAGER;
-    public Manager.Credentials Credentials;
-    private final Object key = new Object();
-    public SQLManager SQLManager;
+    public static Main getInstance() {
+        return PLUGIN;
+    }
 
     @Listener
     public void onStart(org.spongepowered.api.event.game.state.GamePreInitializationEvent ignored){
@@ -67,13 +68,10 @@ public class Main {
                     Register.registerAll(Main.this);
                 } catch (IOException e) {
                     LOGGER.info("ERROR while setting up configuration!");
+
                     e.printStackTrace();
                 }
             }
         }).start();
-    }
-
-    public static Main getInstance(){
-        return PLUGIN;
     }
 }

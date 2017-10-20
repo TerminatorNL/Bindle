@@ -19,7 +19,7 @@ Opens your Bindle on page 4
 Uploads your player.dat to the SQL server
 
 `/bindle get-self` (`bindle.user.getself`)<br>
-Retrieves your player.dat to the SQL server
+Retrieves your player.dat from the SQL server
 
 `/bindleReload` (`bindle.admin.reload`)<br>
 Reloads the Bindle config, useful for setting up SQL.

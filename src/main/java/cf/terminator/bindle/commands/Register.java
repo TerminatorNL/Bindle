@@ -6,6 +6,7 @@ import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.text.Text;
 
 public class Register {
+
     public static void registerAll(Object plugin){
 
         CommandSpec bindleMe = CommandSpec.builder()

@@ -2,7 +2,6 @@ package cf.terminator.bindle.inventory;
 
 import cf.terminator.bindle.Main;
 import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.item.inventory.AffectItemStackEvent;
 import org.spongepowered.api.event.item.inventory.ClickInventoryEvent;
 import org.spongepowered.api.event.item.inventory.InteractInventoryEvent;
 import org.spongepowered.api.item.inventory.Inventory;
@@ -26,8 +25,9 @@ public abstract class BasicInventory {
         this.page = page;
     }
 
-    public void setInventory(Inventory i){
-        inventory = i;
+    public static int getSlotNumber(Slot slot) {
+        Collection<SlotIndex> properties = slot.parent().getProperties(slot, SlotIndex.class);
+        return properties.iterator().next().getValue();
     }
 
     public Inventory getInventory(){
@@ -35,6 +35,10 @@ public abstract class BasicInventory {
             inventory = setupInventory();
         }
         return inventory;
+    }
+
+    public void setInventory(Inventory i) {
+        inventory = i;
     }
 
     private Inventory setupInventory() {
@@ -49,11 +53,6 @@ public abstract class BasicInventory {
                 .listener(ClickInventoryEvent.class, this::onClick)
                 .build(Main.getInstance());
 
-    }
-
-    public static int getSlotNumber(Slot slot){
-        Collection<SlotIndex> properties = slot.parent().getProperties(slot, SlotIndex.class);
-        return properties.iterator().next().getValue();
     }
 
     abstract void onOpen(InteractInventoryEvent.Open e);

@@ -22,7 +22,7 @@ public class Loader {
 
     public static String encode(ItemStack data) throws IOException{
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        DataFormats.NBT.writeTo(outputStream, data.toContainer());
+        DataFormats.NBT.writeTo(outputStream, data.createSnapshot().toContainer());
         return DatatypeConverter.printHexBinary(outputStream.toByteArray());
     }
 }
