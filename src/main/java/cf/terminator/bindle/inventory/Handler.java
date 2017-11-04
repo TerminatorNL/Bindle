@@ -8,6 +8,7 @@ import org.spongepowered.api.event.cause.Cause;
 import org.spongepowered.api.event.cause.NamedCause;
 import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.text.format.TextColors;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -24,32 +25,6 @@ public class Handler {
 
     public Handler(Player player_){
         player = player_;
-    }
-
-    public void execute(final Integer page){
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                if (player.isOnline() == false) {
-                    return;
-                }
-                if(Session.isSessionActive(player, page)){
-                    player.sendMessage(Text.of("Sorry, this page is still processing!"));
-                    return;
-                }
-                try {
-                    SQLInventory sqlInventory = new SQLInventory(player, page);
-                    Sponge.getScheduler().createTaskBuilder().execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            player.openInventory(sqlInventory.getInventory(), Cause.of(NamedCause.owner(Main.getInstance())));
-                        }
-                    }).submit(Main.PLUGIN);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
     }
 
     public static void setPageDone(Player player){
@@ -75,6 +50,32 @@ public class Handler {
                 }
             }
         }
+    }
+
+    public void execute(final Integer page) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (player.isOnline() == false) {
+                    return;
+                }
+                if (Session.isSessionActive(player, page)) {
+                    player.sendMessage(Text.of(TextColors.RED, "Sorry, this page is still processing!"));
+                    return;
+                }
+                try {
+                    SQLInventory sqlInventory = new SQLInventory(player, page);
+                    Sponge.getScheduler().createTaskBuilder().execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            player.openInventory(sqlInventory.getInventory(), Cause.of(NamedCause.owner(Main.getInstance())));
+                        }
+                    }).submit(Main.PLUGIN);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 }
 

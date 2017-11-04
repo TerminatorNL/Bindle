@@ -2,7 +2,7 @@
     {
         "modid": "bindle",
         "name": "Bindle",
-        "version": "1.0",
+        "version": "3.0",
         "description": "Moves items between servers through SQL",
         "url": "",
         "authorList": ["Terminator_NL"],

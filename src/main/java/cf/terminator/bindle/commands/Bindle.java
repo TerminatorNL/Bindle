@@ -22,7 +22,7 @@ public class Bindle implements CommandExecutor{
         } catch (IllegalArgumentException e) {
             throw new CommandException(Text.of("You can\'t run this command, because you aren\'t a player!"));
         }
-        int page = (int) args.getOne("page").orElse(1);
+        int page = (Integer) args.getOne("page").orElse(1);
         page = Math.max(page, 1);
         page = Math.min(page, 9);
         Handler handler = new Handler(uuid);

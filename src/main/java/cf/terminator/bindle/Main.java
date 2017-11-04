@@ -23,7 +23,7 @@ public class Main {
 
     static final String MOD_ID = "bindle";
     static final String MOD_NAME = "Bindle";
-    static final String VERSION = "1.0";
+    static final String VERSION = "3.0";
 
     public static Main PLUGIN;
     public static Logger LOGGER;

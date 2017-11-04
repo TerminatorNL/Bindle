@@ -10,6 +10,7 @@ import org.spongepowered.api.item.inventory.Inventory;
 import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.item.inventory.transaction.SlotTransaction;
 import org.spongepowered.api.text.Text;
+import org.spongepowered.api.text.format.TextColors;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -86,7 +87,7 @@ class SQLInventory extends BasicInventory{
                                 String encoded = Loader.encode(stack.get());
                                 if (Main.PLUGIN.SQLManager.storeData(conn, player.getUniqueId(), page, slotNumber, encoded) == false) {
                                     player.getInventory().offer(stack.get());
-                                    player.sendMessage(Text.of(stack.get().getItem().getName() + " can't be uploaded. Returned item to your inventory."));
+                                    player.sendMessage(Text.of(TextColors.RED, stack.get().getItem().getName() + " can't be uploaded. ", TextColors.GREEN, "Returned item to your inventory."));
                                 }
                             } else {
                                 Main.PLUGIN.SQLManager.removeData(conn, player.getUniqueId(), page, slotNumber);
@@ -99,7 +100,7 @@ class SQLInventory extends BasicInventory{
                 }
                 Session.endSession(player, page);
                 Handler.setPageDone(player);
-                player.sendMessage(Text.of("Saved page " + page));
+                player.sendMessage(Text.of(TextColors.GREEN, "Saved: page " + page + "."));
             }
         }).start();
     }
