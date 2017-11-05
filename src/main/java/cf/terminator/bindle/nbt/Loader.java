@@ -1,10 +1,8 @@
 package cf.terminator.bindle.nbt;
 
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
-import org.spongepowered.api.data.DataContainer;
-import org.spongepowered.api.data.persistence.DataFormats;
-import org.spongepowered.api.item.inventory.ItemStack;
 
 import javax.xml.bind.DatatypeConverter;
 import java.io.ByteArrayInputStream;
@@ -14,21 +12,22 @@ import java.io.InputStream;
 
 public class Loader {
 
-    public static DataContainer decode(String s) throws IOException{
-        return decode(new ByteArrayInputStream(DatatypeConverter.parseHexBinary(s)));
+    public static ItemStack decodeString(String s) throws IOException {
+        return decodeStream(new ByteArrayInputStream(DatatypeConverter.parseHexBinary(s)));
     }
 
-    public static DataContainer decode(InputStream stream) throws IOException{
-        return DataFormats.NBT.readFrom(stream);
+    private static ItemStack decodeStream(InputStream stream) throws IOException {
+        NBTTagCompound tag = CompressedStreamTools.readCompressed(stream);
+        return ItemStack.loadItemStackFromNBT(tag);
     }
 
-    public static NBTTagCompound decodeFile(InputStream stream) throws IOException {
+    public static NBTTagCompound decodePlayer(InputStream stream) throws IOException {
         return CompressedStreamTools.readCompressed(stream);
     }
 
     public static String encode(ItemStack data) throws IOException{
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        DataFormats.NBT.writeTo(outputStream, data.createSnapshot().toContainer());
+        CompressedStreamTools.writeCompressed(data.serializeNBT(), outputStream);
         return DatatypeConverter.printHexBinary(outputStream.toByteArray());
     }
 }

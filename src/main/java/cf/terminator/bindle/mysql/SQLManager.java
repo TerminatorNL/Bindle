@@ -2,8 +2,8 @@ package cf.terminator.bindle.mysql;
 
 import cf.terminator.bindle.Main;
 import cf.terminator.bindle.nbt.Loader;
+import net.minecraft.item.ItemStack;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.item.inventory.ItemStack;
 import org.spongepowered.api.service.sql.SqlService;
 
 import java.io.IOException;
@@ -100,7 +100,7 @@ public class SQLManager {
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet result = stmt.executeQuery();
             while(result.next()){
-                map.put(result.getInt("Slot"), ItemStack.builder().fromContainer(Loader.decode(result.getString("Item"))).build());
+                map.put(result.getInt("Slot"), Loader.decodeString(result.getString("Item")));
             }
         }catch (SQLException | IOException e){
             throw new SQLException(e);

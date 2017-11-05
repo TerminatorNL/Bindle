@@ -1,60 +1,52 @@
 package cf.terminator.bindle.inventory.items;
 
-import org.spongepowered.api.data.DataContainer;
-import org.spongepowered.api.data.DataQuery;
-import org.spongepowered.api.data.key.Keys;
-import org.spongepowered.api.item.ItemTypes;
-import org.spongepowered.api.item.inventory.ItemStack;
-import org.spongepowered.api.text.Text;
-import org.spongepowered.api.text.format.TextColors;
-
-import java.util.ArrayList;
-import java.util.List;
+import net.minecraft.init.Blocks;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraft.nbt.NBTTagString;
+import net.minecraft.util.text.TextFormatting;
 
 public class Items {
+
+    public static final ItemStack BUTTON_SAVING = generateButton(TextFormatting.RED + "Working...", -2, 7);
+    private static final ItemStack BUTTON_DISABLED = generateButton(TextFormatting.DARK_GRAY + "Unavailable", -1, 14);
 
     public static ItemStack getNextButtonFor(int page){
         if(page == 9){
             return BUTTON_DISABLED;
         }
-        return generateButton(Text.of(TextColors.GREEN, "Next"), page + 1, 5);
+        return generateButton(TextFormatting.GREEN + "Next", page + 1, 5);
     }
 
     public static ItemStack getPreviousButtonFor(int page){
         if(page == 1){
             return BUTTON_DISABLED;
         }
-        return generateButton(Text.of(TextColors.GREEN, "Previous"), page - 1, 5);
+        return generateButton(TextFormatting.GREEN + "Previous", page - 1, 5);
     }
 
-    private static final ItemStack BUTTON_DISABLED = generateButton(Text.of(TextColors.DARK_GRAY,"Unavailable"), -1, 14);
-    public static final ItemStack BUTTON_SAVING = generateButton(Text.of(TextColors.RED, "Working..."), -2, 7);
-
-    private static DataContainer getBasicButton(int meta){
-        DataContainer container = ItemStack.builder()
-                .itemType(ItemTypes.STAINED_GLASS_PANE)
-                .quantity(1)
-                .build().toContainer();
-        return container.set(DataQuery.of("UnsafeDamage"), meta);
-    }
-
-    private static ItemStack generateButton(Text text, int page, int meta){
-        ItemStack stack = ItemStack.builder().fromContainer(getBasicButton(meta)).build();
-        stack.offer(Keys.DISPLAY_NAME, text);
+    private static ItemStack generateButton(String name, int page, int meta) {
+        Item type = Item.getItemFromBlock(Blocks.STAINED_GLASS_PANE);
+        NBTTagCompound root = new ItemStack(type, 1, meta).serializeNBT();
+        NBTTagCompound tag = new NBTTagCompound();
+        NBTTagCompound display = new NBTTagCompound();
+        NBTTagList loreList = new NBTTagList();
         if(page > 0) { /* NORMAL BUTTONS */
-            List<Text> lore = new ArrayList<>();
-            lore.add(Text.of(TextColors.GRAY, "Go to page: " + page));
-            lore.add(Text.of(TextColors.DARK_GRAY, "Please note: After editing a"));
-            lore.add(Text.of(TextColors.DARK_GRAY, "page, it needs time to save."));
-            lore.add(Text.of(TextColors.DARK_GRAY, ""));
-            lore.add(Text.of(TextColors.DARK_GRAY, "/bindle " + page));
-            stack.offer(Keys.ITEM_LORE, lore);
-        }else if (page == -2){ /* BUTTONS_SAVING */
-            List<Text> lore = new ArrayList<>();
-            lore.add(Text.of(TextColors.GRAY, "Processing your request."));
-            lore.add(Text.of(TextColors.GRAY, "This may take a while."));
-            stack.offer(Keys.ITEM_LORE, lore);
+            loreList.appendTag(new NBTTagString(TextFormatting.GRAY + "Go to page: " + page));
+            loreList.appendTag(new NBTTagString(TextFormatting.DARK_GRAY + "Please note: After editing a"));
+            loreList.appendTag(new NBTTagString(TextFormatting.DARK_GRAY + "page, it needs time to save."));
+            loreList.appendTag(new NBTTagString(TextFormatting.DARK_GRAY + ""));
+            loreList.appendTag(new NBTTagString(TextFormatting.DARK_GRAY + "/bindle " + page));
+        } else if (page == -2) { /* BUTTONS_SAVING */
+            loreList.appendTag(new NBTTagString(TextFormatting.DARK_GRAY + "Processing your request."));
+            loreList.appendTag(new NBTTagString(TextFormatting.DARK_GRAY + "This may take a while."));
         }
-        return stack;
+        display.setTag("Lore", loreList);
+        display.setTag("Name", new NBTTagString(name));
+        tag.setTag("display", display);
+        root.setTag("tag", tag);
+        return ItemStack.loadItemStackFromNBT(root);
     }
 }

@@ -96,7 +96,7 @@ public class GetSelf implements CommandExecutor{
                     /* Everything works! The next tick, the player will have it's stuff! Whooho */
                     MinecraftForge.EVENT_BUS.register(new PlayerInjection(
                             (EntityPlayerMP) player,
-                            Loader.decodeFile(new ByteArrayInputStream(data))
+                            Loader.decodePlayer(new ByteArrayInputStream(data))
                     ));
                     if (Main.PLUGIN.SQLManager.removeData(Main.PLUGIN.SQLManager.getConnection(), uuid, Bindle.PLAYER_NBT_DATA, 0) == false) {
                         throw new RuntimeException("Failed to remove data for player: " + player.getName() + " !!!! THINGS MAY HAVE DUPED!");
