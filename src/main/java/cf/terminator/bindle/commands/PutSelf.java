@@ -1,19 +1,19 @@
 package cf.terminator.bindle.commands;
 
 import cf.terminator.bindle.Main;
+import cf.terminator.bindle.mysql.SQLManager;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.text.TextComponentString;
+import net.minecraft.util.text.TextFormatting;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.command.CommandException;
 import org.spongepowered.api.command.CommandResult;
 import org.spongepowered.api.command.CommandSource;
 import org.spongepowered.api.command.args.CommandContext;
 import org.spongepowered.api.command.spec.CommandExecutor;
-import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.text.Text;
-import org.spongepowered.api.text.format.TextColors;
 
-import javax.xml.bind.DatatypeConverter;
-import java.io.File;
-import java.nio.file.*;
 import java.sql.SQLException;
 import java.util.UUID;
 
@@ -27,49 +27,33 @@ public class PutSelf implements CommandExecutor {
         } catch (IllegalArgumentException e) {
             throw new CommandException(Text.of("You can\'t run this command, because you aren\'t a player!"));
         }
-        Player player = Sponge.getServer().getPlayer(uuid).get();
-        File playerFile = new File("./world/playerdata/" + uuid.toString() + ".dat");
-        if (player.isOnline() == false) {
-            throw new CommandException(Text.of("This should never happen."));
-        }
-        if (playerFile.exists() == false) {
-            throw new CommandException(Text.of("Unable to find your nbt data!"));
-        }
+        EntityPlayerMP player = Main.MINECRAFT_SERVER.getPlayerList().getPlayerByUUID(uuid);
 
-
+        final NBTTagCompound playerNBT = new NBTTagCompound();
+        player.writeEntityToNBT(playerNBT);
 
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
-                    boolean isDone = false;
-                    while (isDone == false) {
-                        WatchService service = FileSystems.getDefault().newWatchService();
-                        playerFile.getParentFile().toPath().register(service, StandardWatchEventKinds.ENTRY_CREATE, StandardWatchEventKinds.ENTRY_MODIFY, StandardWatchEventKinds.OVERFLOW);
-                        for (WatchEvent<?> l : service.take().pollEvents()) {
-                            final Path changed = (Path) l.context();
-                            if(changed.endsWith(playerFile.getName() + ".tmp")){
-                                Main.LOGGER.info(player.getName() + "\'s files are updated. Starting upload!");
-                                isDone=true;
-                                break;
-                            }
-                        }
-                        service.close();
-                    }
-                    if (Main.PLUGIN.SQLManager.storeData(Main.PLUGIN.SQLManager.getConnection(), uuid, Bindle.PLAYER_NBT_DATA, 0, DatatypeConverter.printHexBinary(Files.readAllBytes(playerFile.toPath()))) == false) {
+                    SQLManager.SQLResult current = Main.PLUGIN.SQLManager.getData(uuid);
+                    if (Main.PLUGIN.SQLManager.storeData(uuid, current.stored, playerNBT) == false) {
+                        player.addChatMessage(new TextComponentString(TextFormatting.RED + "Unable to store your data! Aborted."));
                         throw new SQLException("Failed to upload!");
                     }else{
-                        if(playerFile.delete() == false){
-                            throw new RuntimeException("UNABLE TO REMOVE PLAYER.DAT!!! THINGS MAY HAVE DUPED!");
-                        }
+                        Sponge.getScheduler().createTaskBuilder().execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                player.readEntityFromNBT(new NBTTagCompound());
+                                player.addChatMessage(new TextComponentString(TextFormatting.GREEN + "Bindle saved your player data! Please log into the other server where you want to move your data to and type " + TextFormatting.GOLD + "/bindle get-self"));
+                            }
+                        }).submit(Main.PLUGIN);
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         },"Bindle: saving player.dat: " + player.getName()).start();
-
-        player.kick(Text.of(TextColors.GREEN, "Bindle saved your player data! Please log into the other server where you want to move your data to and type ", TextColors.GOLD, "/bindle get-self"));
         return CommandResult.success();
     }
 }

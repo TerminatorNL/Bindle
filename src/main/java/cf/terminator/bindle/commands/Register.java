@@ -1,7 +1,6 @@
 package cf.terminator.bindle.commands;
 
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.command.args.GenericArguments;
 import org.spongepowered.api.command.spec.CommandSpec;
 import org.spongepowered.api.text.Text;
 
@@ -21,13 +20,20 @@ public class Register {
                 .executor(new GetSelf())
                 .build();
 
+
+        CommandSpec bindleOpen = CommandSpec.builder()
+                .description(Text.of("Opens the interface"))
+                .permission("bindle.user.use")
+                .executor(new Open())
+                .build();
+
         CommandSpec bindle = CommandSpec.builder()
                 .description(Text.of("Moves items between servers"))
                 .permission("bindle.user.use")
                 .executor(new Bindle())
+                .child(bindleOpen, "open")
                 .child(bindleMe, "put-self")
                 .child(bindleGet, "get-self")
-                .arguments(GenericArguments.optional(GenericArguments.integer(Text.of("page"))))
                 .build();
 
         Sponge.getCommandManager().register(plugin, bindle, "bindle");

@@ -2,17 +2,15 @@ package cf.terminator.bindle.mysql;
 
 import cf.terminator.bindle.Main;
 import cf.terminator.bindle.nbt.Loader;
-import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import org.spongepowered.api.Sponge;
 import org.spongepowered.api.service.sql.SqlService;
 
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
 import java.util.UUID;
 
 public class SQLManager {
@@ -38,12 +36,11 @@ public class SQLManager {
 
     public void prepareDatabase(Object key){
         url = Main.PLUGIN.Credentials.getUrl(key);
-        String sql = "CREATE TABLE IF NOT EXISTS `Data` " +
-                "(`Player` TINYTEXT NOT NULL," +
-                "`Page` TINYINT NOT NULL," +
-                "`Slot` TINYINT NOT NULL," +
-                "`Item` LONGTEXT NOT NULL," +
-                "PRIMARY KEY (Player(36), Page, Slot));";
+        String sql = "CREATE TABLE IF NOT EXISTS `Data` (" +
+                "`Player` TINYTEXT NOT NULL," +
+                "`Stored` LONGTEXT NOT NULL," +
+                "`Self` LONGTEXT NOT NULL," +
+                "PRIMARY KEY (Player(36)));";
         try{
             conn = getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql);
@@ -54,23 +51,28 @@ public class SQLManager {
         Main.LOGGER.info("SQL database: ready");
     }
 
-    public boolean storeData(Connection conn, UUID uuid, int page, int slot, String data){
-        StringBuilder build = new StringBuilder();
-        build.append("INSERT INTO Data (Player, Page, Slot, Item)");
-        build.append(" VALUES('");
-        build.append(uuid.toString());
-        build.append("',");
-        build.append(page);
-        build.append(",");
-        build.append(slot);
-        build.append(",");
-        build.append("'");
-        build.append(data);
-        build.append("') ");
-        build.append("ON DUPLICATE KEY UPDATE `Player`=VALUES(`Player`), `Page`=VALUES(`Page`), `Slot`=VALUES(`Slot`), `Item`=VALUES(`Item`);");
-        String sql = build.toString();
+    public boolean storeData(UUID uuid, NBTTagCompound[] stored, NBTTagCompound self) {
         try{
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            if (isEmptyNBT(stored) && isEmptyNBT(self)) {
+                removeData(uuid);
+                return true;
+            }
+            ArrayList<String> storedList = new ArrayList<>();
+            for (NBTTagCompound tag : stored) {
+                storedList.add(Loader.encodeTag(tag));
+            }
+            StringBuilder build = new StringBuilder();
+            build.append("INSERT INTO Data (`Player`, `Stored`, `Self`)");
+            build.append(" VALUES('");
+            build.append(uuid.toString());
+            build.append("','");
+            build.append(String.join(",", storedList));
+            build.append("','");
+            build.append(Loader.encodeTag(self));
+            build.append("') ");
+            build.append("ON DUPLICATE KEY UPDATE `Player`=VALUES(`Player`), `Stored`=VALUES(`Stored`), `Self`=VALUES(`Self`);");
+            String sql = build.toString();
+            PreparedStatement stmt = getConnection().prepareStatement(sql);
             stmt.executeQuery();
             return true;
         }catch (SQLException e){
@@ -79,32 +81,69 @@ public class SQLManager {
         }
     }
 
-    public boolean removeData(Connection conn, UUID uuid, int page, int slot){
-        String sql = "DELETE FROM `Data` WHERE `Player` = '" + uuid.toString() + "' AND `Page` = " + page+ " AND `Slot` = " + slot + ";";
-        try{
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.executeQuery();
-            return true;
-        }catch (SQLException e){
-            e.printStackTrace();
+    private boolean isEmptyNBT(NBTTagCompound tag) {
+        return tag.equals(new NBTTagCompound());
+    }
+
+    private boolean isEmptyNBT(NBTTagCompound[] tagList) {
+        for (NBTTagCompound tag : tagList) {
+            if (isEmptyNBT(tag) == false) {
+                return false;
+            }
         }
-        return false;
+        return true;
+    }
+
+    private void removeData(UUID uuid) throws SQLException {
+        try{
+            String sql = "DELETE FROM `Data` WHERE `Player` = '" + uuid.toString() + "';";
+            PreparedStatement stmt = getConnection().prepareStatement(sql);
+            stmt.executeQuery();
+        }catch (SQLException e){
+            throw new SQLException(e);
+        }
     }
 
 
-    public Map<Integer, ItemStack> getData(UUID uuid, int page) throws SQLException{
-        Map<Integer, ItemStack> map = new HashMap<>();
-        String sql = "SELECT * FROM Data WHERE (Player='" + uuid.toString() + "') AND (Page=" + page + ");";
+    public SQLResult getData(UUID uuid) throws SQLException {
+        String sql = "SELECT * FROM Data WHERE (Player='" + uuid.toString() + "');";
         try{
-            Connection conn = getConnection();
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            PreparedStatement stmt = getConnection().prepareStatement(sql);
             ResultSet result = stmt.executeQuery();
-            while(result.next()){
-                map.put(result.getInt("Slot"), Loader.decodeString(result.getString("Item")));
+            if (result.next()) {
+                return new SQLResult(result.getString("Stored"), result.getString("Self"));
+            } else {
+                return new SQLResult(null, null);
             }
-        }catch (SQLException | IOException e){
+        } catch (SQLException e) {
             throw new SQLException(e);
         }
-        return map;
+    }
+
+    public class SQLResult {
+        public final NBTTagCompound[] stored;
+        public final NBTTagCompound playerData;
+
+        SQLResult(String stored, String playerData) {
+            if (stored == null) {
+                this.stored = new NBTTagCompound[0];
+            } else {
+                String[] tmp;
+                if (stored.contains(",")) {
+                    tmp = stored.split(",");
+                } else {
+                    tmp = new String[]{stored};
+                }
+                this.stored = new NBTTagCompound[tmp.length];
+                for (int i = 0; i < tmp.length; i++) {
+                    this.stored[i] = Loader.decodeFromSQL(tmp[i]);
+                }
+            }
+            if (playerData == null) {
+                this.playerData = new NBTTagCompound();
+            } else {
+                this.playerData = Loader.decodeFromSQL(playerData);
+            }
+        }
     }
 }

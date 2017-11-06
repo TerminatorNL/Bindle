@@ -1,7 +1,7 @@
 package cf.terminator.bindle.commands;
 
 import cf.terminator.bindle.Main;
-import cf.terminator.bindle.nbt.Loader;
+import cf.terminator.bindle.mysql.SQLManager;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -19,41 +19,9 @@ import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.format.TextColors;
 
-import javax.xml.bind.DatatypeConverter;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.util.UUID;
 
 public class GetSelf implements CommandExecutor{
-
-    private static int waitForUnlock(File file) {
-        int count = 0;
-        while (true) {
-            try {
-                FileInputStream i = new FileInputStream(file);
-                i.close();
-                break;
-            } catch (FileNotFoundException ignored) {
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            try {
-                if (count > 20000) {
-                    throw new RuntimeException("Minecraft has been writing to the playerfile " + file + " for 20 seconds now... I am going on a limb here, and assume that the server is broken by now.");
-                }
-                Thread.sleep(10);
-                count = count + 10;
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-        return count;
-    }
 
     @Override
     public CommandResult execute(CommandSource src, CommandContext commandContext) throws CommandException {
@@ -73,32 +41,15 @@ public class GetSelf implements CommandExecutor{
             @Override
             public void run() {
                 try {
-                    String sql = "SELECT * FROM Data WHERE (Player='" + uuid.toString() + "') AND (Page=" + Bindle.PLAYER_NBT_DATA + ");";
-
-                    Connection conn = Main.PLUGIN.SQLManager.getConnection();
-                    PreparedStatement stmt = conn.prepareStatement(sql);
-                    ResultSet result = stmt.executeQuery();
-                    int count = 0;
-                    byte[] dataTMP = new byte[0];
-                    while (result.next()) {
-                        count++;
-                        if(count > 1){
-                            player.sendMessage(Text.of(TextColors.RED, "Something went horribly wrong with your player.dat! Contact the server staff for help."));
-                            throw new RuntimeException("There are two entries for this player in the SQL database, this was thought to be impossible!");
-                        }
-                        dataTMP = DatatypeConverter.parseHexBinary(result.getString("Item"));
-                    }
-                    if(dataTMP.length == 0){
+                    SQLManager.SQLResult result = Main.PLUGIN.SQLManager.getData(uuid);
+                    if (result.playerData.equals(new NBTTagCompound())) {
                         player.sendMessage(Text.of(TextColors.RED, "You have to use /bindle put-self first!"));
                         return;
                     }
-                    final byte[] data = dataTMP;
                     /* Everything works! The next tick, the player will have it's stuff! Whooho */
-                    MinecraftForge.EVENT_BUS.register(new PlayerInjection(
-                            (EntityPlayerMP) player,
-                            Loader.decodePlayer(new ByteArrayInputStream(data))
-                    ));
-                    if (Main.PLUGIN.SQLManager.removeData(Main.PLUGIN.SQLManager.getConnection(), uuid, Bindle.PLAYER_NBT_DATA, 0) == false) {
+                    MinecraftForge.EVENT_BUS.register(new PlayerInjection((EntityPlayerMP) player, result.playerData));
+
+                    if (Main.PLUGIN.SQLManager.storeData(uuid, result.stored, new NBTTagCompound()) == false) {
                         throw new RuntimeException("Failed to remove data for player: " + player.getName() + " !!!! THINGS MAY HAVE DUPED!");
                     }
                 } catch (Exception e) {
@@ -132,9 +83,7 @@ public class GetSelf implements CommandExecutor{
                     player.inventory.setInventorySlotContents(slot, null);
                 }
             }
-
-
-            System.out.println(player.getName() + "'s player data has been updated!");
+            Main.LOGGER.info(player.getName() + "'s player data has been retrieved!");
             player.readEntityFromNBT(tag);
         }
     }

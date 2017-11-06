@@ -1,6 +1,5 @@
 package cf.terminator.bindle.nbt;
 
-import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
 
@@ -12,22 +11,33 @@ import java.io.InputStream;
 
 public class Loader {
 
-    public static ItemStack decodeString(String s) throws IOException {
-        return decodeStream(new ByteArrayInputStream(DatatypeConverter.parseHexBinary(s)));
+    public static NBTTagCompound decodeFromSQL(String s) {
+        if (s == null || s.equals("")) {
+            return new NBTTagCompound();
+        } else {
+            return decodeFromSQL(new ByteArrayInputStream(DatatypeConverter.parseHexBinary(s)));
+        }
     }
 
-    private static ItemStack decodeStream(InputStream stream) throws IOException {
-        NBTTagCompound tag = CompressedStreamTools.readCompressed(stream);
-        return ItemStack.loadItemStackFromNBT(tag);
+
+    public static NBTTagCompound decodeFromSQL(InputStream s) {
+        if (s == null) {
+            return new NBTTagCompound();
+        }
+        try {
+            return CompressedStreamTools.readCompressed(s);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public static NBTTagCompound decodePlayer(InputStream stream) throws IOException {
-        return CompressedStreamTools.readCompressed(stream);
-    }
-
-    public static String encode(ItemStack data) throws IOException{
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        CompressedStreamTools.writeCompressed(data.serializeNBT(), outputStream);
-        return DatatypeConverter.printHexBinary(outputStream.toByteArray());
+    public static String encodeTag(NBTTagCompound tag) {
+        try {
+            ByteArrayOutputStream b = new ByteArrayOutputStream();
+            CompressedStreamTools.writeCompressed(tag, b);
+            return DatatypeConverter.printHexBinary(b.toByteArray());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
